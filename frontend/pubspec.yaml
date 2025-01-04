@@ -1,0 +1,28 @@
+name: flutter_gallary
+description: A new Flutter project
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  cupertino_icons: ^1.0.2
+  shared_preferences: ^2.2.0
+  provider: ^6.0.5
+  sqflite: ^2.3.0
+  path: ^1.8.3
+  intl: ^0.19.0  # Updated version to match flutter_localizations requirement
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^2.0.0
+  build_runner: ^2.0.0
+flutter:
+  uses-material-design: true
+  generate: true
+  
+  assets:
+    - assets/i18n/
+    - assets/icons/
+    - assets/images/    
