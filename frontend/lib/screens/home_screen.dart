@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import '../models/clinic_category.dart';
 import '../services/local_service_repository.dart';
-import 'dart:math' as math;
+import 'service_details_screen.dart';
+import 'dart:async';
+import 'package:animations/animations.dart';  // Add this import
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -11,280 +13,283 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
-  List<ClinicCategory> categories = [];
-  double _dragPosition = 0;
-  double _dragPercentage = 0;
-  late AnimationController _swipeController;
-  late Animation<Offset> _swipeAnimation;
+  List<ClinicCategory> _categories = [];
   int _currentIndex = 0;
+  late PageController _pageController;
+  double _currentPage = 0;
+  Timer? _autoScrollTimer;
+  bool _isUserInteracting = false;
 
   @override
   void initState() {
     super.initState();
-    _swipeController = AnimationController(
-      duration: const Duration(milliseconds: 300),
-      vsync: this,
-    );
-    _swipeAnimation = Tween<Offset>(
-      begin: Offset.zero,
-      end: Offset.zero,
-    ).animate(_swipeController);
     _loadCategories();
+    _pageController = PageController(
+      initialPage: 1000,
+      viewportFraction: 0.93,
+    )..addListener(() {
+        setState(() {
+          _currentPage = _pageController.page ?? 0;
+        });
+      });
+    
+    // Start auto-scroll after a brief delay
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _startAutoScroll();
+    });
+  }
+
+  void _startAutoScroll() {
+    // Cancel any existing timer
+    _autoScrollTimer?.cancel();
+    
+    // Create new timer for auto-scroll with longer interval (5 seconds)
+    _autoScrollTimer = Timer.periodic(const Duration(milliseconds: 5000), (timer) {
+      if (!_isUserInteracting && _pageController.hasClients) {
+        final nextPage = _pageController.page! + 1;
+        _pageController.animateToPage(
+          nextPage.toInt(),
+          duration: const Duration(milliseconds: 600), // Reduced animation duration
+          curve: Curves.easeInOutCubic,
+        );
+      }
+    });
   }
 
   Future<void> _loadCategories() async {
     final repository = ServiceRepository();
     final loadedCategories = await repository.getCategories();
     setState(() {
-      categories = loadedCategories;
+      _categories = loadedCategories;
     });
   }
 
-  void _onHorizontalDragUpdate(DragUpdateDetails details) {
-    final size = context.size;
-    if (size == null) return;
-    
-    setState(() {
-      _dragPosition += details.delta.dx;
-      _dragPercentage = _dragPosition / size.width;
-    });
-  }
-
-  void _onHorizontalDragEnd(DragEndDetails details) {
-    final size = context.size;
-    if (size == null) return;
-
-    final velocity = details.velocity.pixelsPerSecond.dx;
-    if (_dragPosition.abs() > size.width * 0.4 || velocity.abs() > 1000) {
-      double endPosition = size.width * _dragPosition.sign;
-      _swipeAnimation = Tween<Offset>(
-        begin: Offset(_dragPosition, 0),
-        end: Offset(endPosition, 0),
-      ).animate(_swipeController);
-      
-      _swipeController.forward().then((_) {
-        setState(() {
-          if (_currentIndex < categories.length - 1) {
-            _currentIndex++;
-          }
-          _dragPosition = 0;
-          _dragPercentage = 0;
-          _swipeController.reset();
-        });
-      });
-    } else {
-      _swipeAnimation = Tween<Offset>(
-        begin: Offset(_dragPosition, 0),
-        end: Offset.zero,
-      ).animate(_swipeController);
-      
-      _swipeController.forward().then((_) {
-        setState(() {
-          _dragPosition = 0;
-          _dragPercentage = 0;
-        });
-      });
-    }
+  Widget _buildPageIndicator() {
+    if (_categories.isEmpty) return const SizedBox.shrink();
+    return SizedBox(
+      height: 16,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: List.generate(_categories.length, (index) {
+          final currentRealIndex = _currentIndex % _categories.length;
+          return Container(
+            margin: const EdgeInsets.symmetric(horizontal: 6),
+            child: TweenAnimationBuilder<double>(
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeOutCubic,
+              tween: Tween<double>(
+                begin: 0,
+                end: index == currentRealIndex ? 1.0 : 0.0,
+              ),
+              builder: (context, value, child) {
+                return Container(
+                  width: value * 36 + 16,
+                  height: 16,
+                  decoration: BoxDecoration(
+                    color: index == currentRealIndex 
+                        ? Colors.white 
+                        : Colors.white.withOpacity(0.4),
+                    borderRadius: BorderRadius.circular(4),
+                    boxShadow: index == currentRealIndex ? [
+                      BoxShadow(
+                        color: Colors.white.withOpacity(0.2),
+                        blurRadius: 4,
+                        spreadRadius: 1,
+                      )
+                    ] : null,
+                  ),
+                );
+              },
+            ),
+          );
+        }),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      body: categories.isEmpty
-          ? const Center(child: CircularProgressIndicator())
-          : Stack(
-              children: [
-                // Background
-                Container(
-                  decoration: const BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [Color(0xFF1A1A1A), Colors.black],
-                    ),
-                  ),
-                ),
-                // Content
-                SafeArea(
-                  child: Column(
-                    children: [
-                      const SizedBox(height: 20),
-                      // App Bar
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 20),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            const Text(
-                              'Medical Services',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 28,
-                                fontWeight: FontWeight.bold,
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Color(0xFF1A374D),
+            Color(0xFF406882),
+          ],
+        ),
+      ),
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              SizedBox(
+                height: 1200,
+                child: Listener(
+                  onPointerDown: (_) {
+                    _isUserInteracting = true;
+                    _autoScrollTimer?.cancel();
+                  },
+                  onPointerUp: (_) {
+                    _isUserInteracting = false;
+                    _startAutoScroll();
+                  },
+                  child: PageView.builder(
+                    controller: _pageController,
+                    onPageChanged: (index) {
+                      setState(() {
+                        _currentIndex = index;
+                      });
+                    },
+                    itemBuilder: (context, index) {
+                      if (_categories.isEmpty) return const SizedBox.shrink();
+                      final category = _categories[index % _categories.length];
+                      double difference = (index - _currentPage);
+                      
+                      return Transform(
+                        transform: Matrix4.identity()
+                          ..translate(0.0, 0.0, 0.0)
+                          ..scale(1.0 - (difference.abs() * 0.2))
+                          ..translate(difference * 100),
+                        child: Opacity(
+                          opacity: 1 - difference.abs().clamp(0.0, 0.7),
+                          child: GestureDetector(
+                            onTap: () {
+                              Navigator.of(context).push(
+                                PageRouteBuilder(
+                                  pageBuilder: (context, animation, secondaryAnimation) {
+                                    return ServiceDetailsScreen(category: category);
+                                  },
+                                  transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                                    var begin = 0.0;
+                                    var end = 1.0;
+                                    var curve = Curves.easeInOutCubic;
+
+                                    var fadeAnimation = Tween(
+                                      begin: begin,
+                                      end: end,
+                                    ).animate(CurvedAnimation(
+                                      parent: animation,
+                                      curve: curve,
+                                    ));
+
+                                    return FadeTransition(
+                                      opacity: fadeAnimation,
+                                      child: child,
+                                    );
+                                  },
+                                  transitionDuration: const Duration(milliseconds: 400),
+                                ),
+                              );
+                            },
+                            child: Container(
+                              margin: const EdgeInsets.symmetric(horizontal: 15, vertical: 10),
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(30),
+                                image: index % _categories.length == 0 ? const DecorationImage(
+                                  image: AssetImage('assets/images/general_medicine_bg.jpg'),
+                                  fit: BoxFit.cover,
+                                  colorFilter: ColorFilter.mode(
+                                    Colors.black54,
+                                    BlendMode.darken,
+                                  ),
+                                ) : null,
+                                gradient: index % _categories.length != 0 ? LinearGradient(
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                  colors: [
+                                    Colors.blue.shade600,
+                                    Colors.purple.shade900,
+                                  ],
+                                ) : null,
+                              ),
+                              child: Stack(
+                                children: [
+                                  Positioned(
+                                    left: 30,
+                                    bottom: 50,
+                                    right: 30,
+                                    child: Transform.translate(
+                                      offset: Offset(
+                                        difference * 100,
+                                        0,
+                                      ),
+                                      child: Opacity(
+                                        opacity: 1 - difference.abs().clamp(0.0, 0.7),
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Text(
+                                              category.name.toUpperCase(),
+                                              style: const TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 64,
+                                                fontWeight: FontWeight.w700,
+                                                letterSpacing: 1.5,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 25),
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(
+                                                horizontal: 20,
+                                                vertical: 10,
+                                              ),
+                                              decoration: BoxDecoration(
+                                                color: Colors.white24,
+                                                borderRadius: BorderRadius.circular(20),
+                                              ),
+                                              child: Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  const Icon(
+                                                    Icons.medical_services,
+                                                    color: Colors.white,
+                                                    size: 24,
+                                                  ),
+                                                  const SizedBox(width: 8),
+                                                  Text(
+                                                    '${category.services.length}',
+                                                    style: const TextStyle(
+                                                      color: Colors.white,
+                                                      fontSize: 20,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
-                            IconButton(
-                              icon: const Icon(Icons.settings, color: Colors.white),
-                              onPressed: () {},
-                            ),
-                          ],
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 20),
-                      // Swipeable Cards
-                      Expanded(
-                        child: Stack(
-                          alignment: Alignment.center,
-                          children: List.generate(2, (index) {
-                            final itemIndex = _currentIndex + index;
-                            if (itemIndex >= categories.length) return const SizedBox();
-                            
-                            final category = categories[itemIndex];
-                            final isTop = index == 0;
-                            
-                            return AnimatedBuilder(
-                              animation: _swipeController,
-                              builder: (context, child) {
-                                final slideOffset = isTop ? _swipeAnimation.value : Offset.zero;
-                                return _buildCard(
-                                  category,
-                                  isTop,
-                                  index,
-                                  slideOffset,
-                                );
-                              },
-                            );
-                          }),
-                        ),
-                      ),
-                    ],
+                      );
+                    },
                   ),
                 ),
-              ],
-            ),
-    );
-  }
-
-  Widget _buildCard(ClinicCategory category, bool isTop, int index, Offset slideOffset) {
-    final screenSize = MediaQuery.of(context).size;
-    final cardWidth = screenSize.width * 0.9;
-    final cardHeight = screenSize.height * 0.6;
-
-    return Positioned(
-      top: 0,
-      child: GestureDetector(
-        onHorizontalDragUpdate: isTop ? _onHorizontalDragUpdate : null,
-        onHorizontalDragEnd: isTop ? _onHorizontalDragEnd : null,
-        child: Transform.translate(
-          offset: isTop ? Offset(_dragPosition + slideOffset.dx, 0) : Offset.zero,
-          child: Transform.rotate(
-            angle: isTop ? _dragPercentage * 0.3 : 0,
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 300),
-              width: cardWidth,
-              height: cardHeight,
-              margin: EdgeInsets.only(top: index * 20),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.3),
-                    blurRadius: 10,
-                    spreadRadius: 2,
-                  ),
-                ],
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    Colors.blue.withOpacity(0.8),
-                    Colors.purple.withOpacity(0.8),
-                  ],
-                ),
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Category Image/Icon
-                  Expanded(
-                    flex: 3,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.1),
-                        borderRadius: const BorderRadius.only(
-                          topLeft: Radius.circular(20),
-                          topRight: Radius.circular(20),
-                        ),
-                      ),
-                      child: Center(
-                        child: Icon(
-                          _getCategoryIcon(category.name),
-                          size: 80,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
-                  ),
-                  // Category Details
-                  Expanded(
-                    flex: 2,
-                    child: Padding(
-                      padding: const EdgeInsets.all(20),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            category.name,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 32,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 10),
-                          Text(
-                            '${category.services.length} Services Available',
-                            style: TextStyle(
-                              color: Colors.white.withOpacity(0.8),
-                              fontSize: 18,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
+              const SizedBox(height: 20),
+              _buildPageIndicator(),
+              const SizedBox(height: 20),
+            ],
           ),
         ),
       ),
     );
   }
 
-  IconData _getCategoryIcon(String categoryName) {
-    switch (categoryName.toLowerCase()) {
-      case 'general medicine':
-        return Icons.medical_services;
-      case 'pediatrics':
-        return Icons.child_care;
-      case 'cardiology':
-        return Icons.favorite;
-      case 'dermatology':
-        return Icons.face;
-      case 'neurology':
-        return Icons.psychology;
-      case 'orthopedics':
-        return Icons.accessibility_new;
-      default:
-        return Icons.local_hospital;
-    }
-  }
-
   @override
   void dispose() {
-    _swipeController.dispose();
+    _autoScrollTimer?.cancel();
+    _pageController.dispose();
     super.dispose();
   }
 }

@@ -5,6 +5,7 @@ class Service {
   final double price;
   final int durationMinutes;
   final String categoryId;
+  final String imagePath; // Added image path
 
   const Service({
     required this.id,
@@ -13,6 +14,7 @@ class Service {
     required this.price,
     required this.durationMinutes,
     required this.categoryId,
+    required this.imagePath,
   });
 
   factory Service.fromJson(Map<String, dynamic> json) {
@@ -23,6 +25,7 @@ class Service {
       price: (json['price'] as num).toDouble(),
       durationMinutes: json['durationMinutes'] as int,
       categoryId: json['categoryId'] as String,
+      imagePath: json['imagePath'] as String,
     );
   }
 
@@ -34,6 +37,7 @@ class Service {
       'price': price,
       'durationMinutes': durationMinutes,
       'categoryId': categoryId,
+      'imagePath': imagePath,
     };
   }
 }

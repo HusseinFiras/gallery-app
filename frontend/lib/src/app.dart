@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import '/l10n/app_localizations.dart';
-import '/screens/home_screen.dart';  // Add this import
+import '/screens/home_screen.dart'; // Add this import
 import 'settings/settings_controller.dart';
 import 'settings/settings_view.dart';
 
@@ -20,6 +20,7 @@ class MyApp extends StatelessWidget {
       builder: (context, child) {
         return MaterialApp(
           restorationScopeId: 'app',
+          debugShowCheckedModeBanner: false,
           localizationsDelegates: const [
             AppLocalizations.delegate,
             GlobalMaterialLocalizations.delegate,
@@ -41,13 +42,15 @@ class MyApp extends StatelessWidget {
               case SettingsView.routeName:
                 return MaterialPageRoute(
                   settings: settings,
-                  builder: (context) => SettingsView(controller: settingsController),
+                  builder: (context) =>
+                      SettingsView(controller: settingsController),
                 );
               case '/':
               default:
                 return MaterialPageRoute(
                   settings: settings,
-                  builder: (context) => const HomeScreen(), // Use our new HomeScreen
+                  builder: (context) =>
+                      const HomeScreen(), // Use our new HomeScreen
                 );
             }
           },

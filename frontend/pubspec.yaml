@@ -12,12 +12,15 @@ dependencies:
   provider: ^6.0.5
   sqflite: ^2.3.0
   path: ^1.8.3
-  intl: ^0.19.0  # Updated version to match flutter_localizations requirement
+  intl: ^0.19.0
+  animations: ^2.0.11  # Added animations package
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^2.0.0
   build_runner: ^2.0.0
+
 flutter:
   uses-material-design: true
   generate: true
@@ -25,4 +28,15 @@ flutter:
   assets:
     - assets/i18n/
     - assets/icons/
-    - assets/images/    
+    - assets/images/
+    - assets/images/3bd3de4aff360434cab2de7c33d3018b.jpg
+    - assets/images/1690391373-02.avif
+    - assets/images/Buccal-fat-removal-results-NYC-NY.-scaled.jpeg
+    - assets/images/general_medicine_bg.jpg
+    - assets/images/image3.jpeg
+    - assets/images/OIP (1).jpg
+    - assets/images/OIP (2).jpg
+    - assets/images/OIP (3).jpg
+    - assets/images/OIP.jpg
+    - assets/images/R.jpg
+    - assets/images/sciton-laser-337-left-oblique-detail.jpg
